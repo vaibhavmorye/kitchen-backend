@@ -1,11 +1,10 @@
 var mysql = require('mysql');
 
 const db_config = {
-    host: "localhost",
-    user: "root",
-    password: "",
+    host: "us-cdbr-iron-east-01.cleardb.net",
+    user: "b1f882a98fe879",
+    password: "4452a6bc",
     database: "kitchen_backend",
-    port: 3306
 };
 
 var dbConnection;
