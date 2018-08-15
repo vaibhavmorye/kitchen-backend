@@ -9,8 +9,8 @@
 
 var pg = require("pg");
 
-var db_config = "postgres://postgres:qwerty@localhost:5432/kitchen";
-
+//var db_config = "postgres://postgres:qwerty@localhost:5432/kitchen";
+var db_config = "postgres://nvhztijrajkcmd:72bb84296856c111ad3d342ddd9e69c3fc05c91da11f61ed10ad573017d59dfa@ec2-54-227-241-179.compute-1.amazonaws.com:5432/db9tr4o17abt4i";
 var dbConnection;
 
 function handleDisconnect() {
