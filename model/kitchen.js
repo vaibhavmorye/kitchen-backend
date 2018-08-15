@@ -1,5 +1,6 @@
 var dbConnection = require('../config/dbconfig');
 var Promise = require('promise');
+var onChangeHandler;
 
 
 function getAllFoodItems() {
@@ -12,7 +13,7 @@ function getAllFoodItems() {
                 from     product_master p,
                          kitchen_orders_master k 
                 where    p.product_id = k.product_id
-                and order_date = date(sysdate())`
+                and order_date = CURRENT_DATE`
     return new Promise(function (resolve, reject) {
         dbConnection.query(query, function (err, rows, fields) {
             if (err) {
@@ -20,7 +21,7 @@ function getAllFoodItems() {
                 return reject(err);
             }
             else {
-                return resolve(rows);
+                return resolve(rows.rows);
             }
         });
     });
@@ -36,7 +37,7 @@ function getAllFoodName() {
                 return reject(err);
             }
             else {
-                return resolve(rows);
+                return resolve(rows.rows);
             }
         });
     });
@@ -53,7 +54,7 @@ function getSingleFoodItems(id) {
                   from  product_master p , 
                         kitchen_orders_master k
                    where p.product_id = k.product_id
-                   and order_date = date(sysdate())
+                   and order_date = CURRENT_DATE
                    and k.product_id = ${id}`;
     return new Promise(function (resolve, reject) {
         dbConnection.query(query, function (err, rows, fields) {
@@ -83,7 +84,7 @@ function updateCompletedOrder(orderData) {
             else {
                 getSingleFoodItems(orderData.product_id).then((rows) => {
                     let result = JSON.stringify(rows);
-                    start(result, 'update_value');
+                    onChangeHandler(result, 'update_value');
                 }).catch((e) => {
                     console.log(e.stack);
                 });
@@ -93,54 +94,50 @@ function updateCompletedOrder(orderData) {
 }
 
 function addProduct(product) {
-    console.log(product.productName);
-    let query = `insert into product_master (product_name, insert_date) 
-                 values('${product}', date(sysdate()));`
-
-    //console.log(query);
+    console.log(product);
+    let query = `WITH product AS (insert into product_master (product_name, insert_date) 
+                 values('${product}', CURRENT_DATE)
+                  RETURNING * )
+          INSERT INTO kitchen_orders_master(product_id, order_date) 
+                 select product.product_id, CURRENT_DATE from product;`
+    console.log(query);
     return new Promise(function (resolve, reject) {
         dbConnection.query(query, function (err, rows, fields) {
             if (err) {
                 console.log("Error loading from DB" + err);
                 return reject(err);
-            }
-            let orderMaster = `insert into kitchen_orders_master (product_id, order_date) 
-                                values('${rows.insertId}', date(sysdate()));`
-            dbConnection.query(orderMaster, function (err, rows, fields) {
-                if (err) {
-                    console.log("Error loading from DB" + err);
-                    return reject(err);
-                }
-                else {
-                    return resolve(rows);
-                }
-            })
-        });
-    });
 
+            }
+            else {
+                return resolve(rows.rows);
+            }
+        })
+    });
 }
 
 function placeNewOrder(product, order) {
 
     let query = `Insert into kitchen_orders (ordered_qty, product_id, order_by, order_date)
-                 values(${order}, ${product.product_id},'Admin', date(sysdate()))`;
+                 values(${order}, ${product.product_id},'Admin', CURRENT_DATE)`;
 
     let mergequery = `INSERT INTO kitchen_orders_master(product_id, ordered_qty, order_date)
-                        VALUES(${product.product_id}, ${order}, date(sysdate())) 
-                        ON DUPLICATE KEY UPDATE ordered_qty=ordered_qty+${order}`;
-
+                        VALUES(${product.product_id}, ${order}, CURRENT_DATE) 
+                        ON CONFLICT (product_id) DO UPDATE SET ordered_qty = kitchen_orders_master.ordered_qty+${order}`;
     return new Promise(function (resolve, reject) {
+        console.log(query);
+
         dbConnection.query(query, function (err, rows, fields) {
             if (err) {
                 console.log("Error loading from DB" + err);
                 return reject(err);
             } else {
+                console.log(mergequery);
                 dbConnection.query(mergequery, function (err, rows, fields) {
                     if (err) {
                         console.log("Error loading from DB" + err);
                         return reject(err);
                     } else {
-                        return resolve(rows);
+                        return resolve(rows.rows);
                     }
                 });
 
@@ -161,13 +158,14 @@ function updatePrediction(prediction) {
                 return reject(err);
             }
             else {
-                return resolve(rows);
+                return resolve(rows.rows);
             }
         });
     });
 }
 
 function generateReports(dates) {
+    console.log(dates.from_date);
     let query = `select p.product_id ,
                         product_name,
                         predicted_qty ,
@@ -177,7 +175,7 @@ function generateReports(dates) {
                  from  product_master p , 
                        kitchen_orders_master k
                  where p.product_id = k.product_id
-                 and (k.order_date between '${dates.from_date}  00:00:00' and '${dates.to_date}  00:00:00' )`;
+                 and (k.order_date  >= '${dates.from_date}' and k.order_date  <='${dates.to_date}' )`;
     return new Promise(function (resolve, reject) {
         dbConnection.query(query, function (err, rows, fields) {
             if (err) {
@@ -185,10 +183,15 @@ function generateReports(dates) {
                 return reject(err);
             }
             else {
-                return resolve(rows);
+                return resolve(rows.rows);
             }
         });
     });
 }
 
-module.exports = { getAllFoodItems, getSingleFoodItems, updateCompletedOrder, placeNewOrder, addProduct, getAllFoodName, updatePrediction, generateReports }
+function kickstart(onChange) {
+    onChangeHandler = onChange;
+}
+
+
+module.exports = { kickstart, getAllFoodItems, getSingleFoodItems, updateCompletedOrder, placeNewOrder, addProduct, getAllFoodName, updatePrediction, generateReports }

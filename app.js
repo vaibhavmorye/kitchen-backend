@@ -13,8 +13,6 @@ app.use(bodyParser.json())
 app.set('port', (process.env.PORT || 5000));
 app.use(cors());
 
-
-
 //getting all products
 app.get('/getallFoodItems', function (request, response) {
     kitchenService.getAllFoodItems().then((rows) => {
@@ -65,13 +63,13 @@ app.post('/addPrediction', function (request, response) {
 })
 
 app.post('/generatereports', function (request, response) {
+    console.log(JSON.stringify(request.body));
     kitchenService.generateReports(request.body).then((rows) => {
         return response.json(rows);
     }).catch((e) => {
         console.log(e.stack);
     });
 });
-
 
 io.sockets.on('connection', function (socket) {
     socketCount++;
@@ -95,10 +93,10 @@ io.sockets.on('connection', function (socket) {
     });
 });
 
-function start(update, type) {
+kitchenService.kickstart(function (update, type) {
     console.log("start");
     io.emit(type, update);
-};
+});
 
 
 server.listen(app.get('port'), function () {

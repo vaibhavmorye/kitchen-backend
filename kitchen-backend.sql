@@ -16,13 +16,13 @@ drop table kitchen_orders;
 
 
 
-create table kitchen_orders(
-order_id int auto_increment primary key not null,
-product_id int,
-ordered_qty int,
-order_by varchar(100),
-order_date date 
-);
+    create table kitchen_orders(
+    order_id int auto_increment primary key not null,
+    product_id int,
+    ordered_qty int,
+    order_by varchar(100),
+    order_date date 
+    );
 
 select * from kitchen_orders;
 
